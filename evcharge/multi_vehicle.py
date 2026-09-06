@@ -51,8 +51,10 @@ def solve_multi_vehicle(
 
     P = [cp.Variable(n, nonneg=True) for _ in range(m)]
     soc = [cp.Variable(n + 1) for _ in range(m)]
+    shortfall = [cp.Variable(nonneg=True) for _ in range(m)]  # soft final-SoC slack
     constraints = []
     objective_terms = []
+    SHORTFALL_PENALTY = 1e4  # large weight: only accept shortfall when truly infeasible to avoid it
 
     for i, v in enumerate(vehicles):
         eta = v["efficiency"]
@@ -62,10 +64,13 @@ def solve_multi_vehicle(
         for t in range(n):
             constraints.append(soc[i][t + 1] == soc[i][t] + (P[i][t] * eta * dt_hours / cap) * 100.0)
         constraints += [P[i] <= v["p_max"], soc[i] >= 0, soc[i] <= 100]
-        constraints.append(soc[i][n] >= v["soc_target"])
+        # Soft final-SoC target (Section 4.3.7.3): under an oversubscribed grid,
+        # a hard constraint here would make the whole problem infeasible by
+        # construction, so shortfall is allowed but heavily penalized instead.
+        constraints.append(soc[i][n] >= v["soc_target"] - shortfall[i])
         cost_term = cp.sum(cp.multiply(price_vector, P[i])) * dt_hours
         deg_term = lam * cp.sum_squares(P[i])
-        objective_terms.append(cost_term + deg_term)
+        objective_terms.append(cost_term + deg_term + SHORTFALL_PENALTY * shortfall[i])
 
     total_power_expr = sum(P)
     constraints.append(total_power_expr <= grid_cap_kw)
