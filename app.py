@@ -34,7 +34,7 @@ efficiency = st.sidebar.slider("Charging efficiency \u03b7", 0.70, 1.00, 0.95, 0
 st.sidebar.subheader("Charger & Schedule")
 p_max = st.sidebar.number_input("Max charger power P_max (kW)", 1.0, 350.0, 7.0, 0.5)
 arrival_hour = st.sidebar.slider("Arrival time (24h clock)", 0.0, 23.75, 18.0, 0.25)
-window_hours = st.sidebar.slider("Charging window length (h)", 0.5, 24.0, 10.0, 0.25)
+window_hours = st.sidebar.slider("Charging window length (h)", 0.5, 72.0, 10.0, 0.25)
 dt_minutes = st.sidebar.selectbox("Interval \u0394t (minutes)", [5, 10, 15, 30, 60], index=2)
 dt_hours = dt_minutes / 60.0
 n_intervals = max(1, int(round(window_hours / dt_hours)))
@@ -219,7 +219,16 @@ with tab_single:
     any_infeasible = any(not np.isfinite(r.cost) for r in results.values())
 
     if any_infeasible:
-        st.error("One or more strategies were infeasible with the current settings. Try a longer window, higher P_max, or lower target SoC.")
+        energy_needed = battery.energy_required_kwh(soc_init, soc_target, capacity_kwh)
+        energy_deliverable = p_max * efficiency * window_hours
+        shortfall = energy_needed - energy_deliverable
+        st.error(
+            f"⚠️ Infeasible: reaching {soc_target}% from {soc_init}% needs about "
+            f"**{energy_needed:.1f} kWh**, but at most **{energy_deliverable:.1f} kWh** can be "
+            f"delivered in {window_hours:.1f} hours at {p_max:.1f} kW with {efficiency:.0%} efficiency "
+            f"— a shortfall of **{shortfall:.1f} kWh**. Widen the charging window, raise P_max, "
+            f"or lower the target SoC to fix this."
+        )
 
     colors = {"baseline": "#888888", "cost_only": "#1f77b4", "multi_objective": "#d62728"}
     fig_power = go.Figure()
