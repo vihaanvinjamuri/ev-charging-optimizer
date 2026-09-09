@@ -1,5 +1,7 @@
 # EV Charging Optimization — Computational Framework
 
+**Try it live:** https://vihaan-ev-charging-optimizer.streamlit.app — no install needed, every parameter is adjustable in your browser.
+
 Companion codebase for the EV charging optimization paper. Every module
 implements one part of the methodology (Chapter 4) against the paper's own
 equation numbers. `app.py` is an interactive Streamlit dashboard — this is
@@ -53,7 +55,24 @@ python validate.py
 Cross-checks the CVXPY solver against independently-derived results and
 prints `ALL VALIDATION CHECKS PASSED` on success.
 
-## 4. Use the modules directly (no UI)
+## 4. Reproduce every headline number in the paper
+
+```bash
+python reproduce_results.py
+```
+
+Regenerates the single-vehicle, real-tariff, multi-vehicle, and sensitivity
+results from Chapter 5 in one run, printing each alongside the value
+reported in the paper for direct comparison.
+
+```bash
+python fairness_constraint.py
+```
+
+Reproduces the Section 5.4.1 proportional-fairness result specifically
+(the two-stage max-min solve).
+
+## 5. Use the modules directly (no UI)
 
 ```python
 from evcharge import pricing
@@ -67,12 +86,14 @@ result = solve_single_vehicle(
 print(result.cost, result.degradation, result.status)
 ```
 
-## 5. Folder structure
+## 6. Folder structure
 
 ```
 ev_charging_optimizer/
-├── app.py                 # Streamlit interactive dashboard (run this)
-├── validate.py             # Cross-checks of the solver
+├── app.py                   # Streamlit interactive dashboard (run this)
+├── validate.py               # Cross-checks of the solver
+├── reproduce_results.py      # Regenerates every headline number in the paper
+├── fairness_constraint.py    # Reproduces the Section 5.4.1 fairness result
 ├── requirements.txt
 ├── README.md
 └── evcharge/
@@ -87,7 +108,8 @@ ev_charging_optimizer/
     └── scenarios.py        # Runs all 3 single-vehicle strategies + summary table
 ```
 
-## 6. If something still doesn't open a website
+
+## 7. If something still doesn't open a website
 
 1. Confirm you typed `streamlit run app.py`, not `python app.py`.
 2. Confirm `streamlit` is on your PATH: `streamlit --version`. If that
