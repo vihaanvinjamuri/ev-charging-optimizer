@@ -94,6 +94,7 @@ ev_charging_optimizer/
 ├── validate.py               # Cross-checks of the solver
 ├── reproduce_results.py      # Regenerates every headline number in the paper
 ├── fairness_constraint.py    # Reproduces the Section 5.4.1 fairness result
+├── stress_test.py             # Reproduces the Section 5.5.1 robustness results
 ├── requirements.txt
 ├── README.md
 └── evcharge/
