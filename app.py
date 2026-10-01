@@ -25,14 +25,21 @@ TOU_COLORS = {"Off-Peak": "#d9f2e6", "Shoulder": "#fff3cf", "Peak": "#fbdada"}
 
 st.sidebar.title("⚡ Model Parameters")
 
+PRESETS = {
+    "Default (60 kWh / 7 kW)": (60.0, 7.0),
+    "Tata Nexon EV (45 kWh / 7.2 kW)": (45.0, 7.2),
+}
+preset = st.sidebar.selectbox("Vehicle preset", list(PRESETS))
+preset_cap, preset_pmax = PRESETS[preset]
+
 st.sidebar.subheader("Battery")
-capacity_kwh = st.sidebar.number_input("Battery capacity (kWh)", 5.0, 200.0, 60.0, 1.0)
+capacity_kwh = st.sidebar.number_input("Battery capacity (kWh)", 5.0, 200.0, preset_cap, 1.0, key=f"single_cap_{preset}")
 soc_init = st.sidebar.slider("Initial SoC (%)", 0, 100, 30)
 soc_target = st.sidebar.slider("Target SoC (%)", 0, 100, 90)
 efficiency = st.sidebar.slider("Charging efficiency \u03b7", 0.70, 1.00, 0.95, 0.01)
 
 st.sidebar.subheader("Charger & Schedule")
-p_max = st.sidebar.number_input("Max charger power P_max (kW)", 1.0, 350.0, 7.0, 0.5)
+p_max = st.sidebar.number_input("Max charger power P_max (kW)", 1.0, 350.0, preset_pmax, 0.5, key=f"single_pmax_{preset}")
 arrival_hour = st.sidebar.slider("Arrival time (24h clock)", 0.0, 23.75, 18.0, 0.25)
 window_hours = st.sidebar.slider("Charging window length (h)", 0.5, 72.0, 10.0, 0.25)
 dt_minutes = st.sidebar.selectbox("Interval \u0394t (minutes)", [5, 10, 15, 30, 60], index=2)
