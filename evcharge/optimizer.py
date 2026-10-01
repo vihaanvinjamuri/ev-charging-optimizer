@@ -31,6 +31,29 @@ class ChargingResult:
         return float(self.meta.get("completion_hours", np.nan))
 
 
+SMALL_BATTERY_KWH = 10.0
+
+
+def solve_problem(problem, solver=None, min_capacity_kwh: float = 100.0) -> None:
+    """Solve a CVXPY problem.
+
+    Default path keeps CVXPY's default solver (OSQP) for car-size batteries, which reproduces
+    the paper's tables exactly. OSQP can stop slightly short of the optimum on some cases
+    (it then reports "optimal_inaccurate" or "user_limit", e.g. very small batteries such as
+    e-scooters, or the 24 kWh Tiago EV), so in that case the problem is re-solved with
+    CLARABEL, an interior-point solver that returns the exact optimum. An explicit `solver`
+    is respected.
+    """
+    import warnings
+    clarabel = "CLARABEL" in cp.installed_solvers()
+    if solver is None and min_capacity_kwh < SMALL_BATTERY_KWH and clarabel:
+        solver = "CLARABEL"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        problem.solve(solver=solver)
+        if solver is None and problem.status != "optimal" and clarabel:
+            problem.solve(solver="CLARABEL")
+
 def solve_single_vehicle(
     price_vector, dt_hours: float, capacity_kwh: float, efficiency: float,
     soc_init: float, soc_target: float, p_max: float,
@@ -54,7 +77,7 @@ def solve_single_vehicle(
     objective = cp.Minimize(cost_term + degradation_weight * degradation_term)
 
     problem = cp.Problem(objective, constraints)
-    problem.solve(solver=solver)
+    solve_problem(problem, solver, capacity_kwh)
 
     if P.value is None:
         return ChargingResult(
