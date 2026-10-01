@@ -10,14 +10,14 @@ from .optimizer import ChargingResult, solve_immediate_charging, solve_single_ve
 
 def run_all_strategies(price_vector, dt_hours: float, capacity_kwh: float, efficiency: float,
                         soc_init: float, soc_target: float, p_max: float,
-                        degradation_weight: float) -> Dict[str, ChargingResult]:
+                        degradation_weight: float, solver=None) -> Dict[str, ChargingResult]:
     baseline = solve_immediate_charging(price_vector, dt_hours, capacity_kwh, efficiency,
                                          soc_init, soc_target, p_max, label="Immediate Charging")
     cost_only = solve_single_vehicle(price_vector, dt_hours, capacity_kwh, efficiency,
-                                      soc_init, soc_target, p_max, degradation_weight=0.0,
+                                      soc_init, soc_target, p_max, degradation_weight=0.0, solver=solver,
                                       label="Cost-Only Optimization")
     multi_objective = solve_single_vehicle(price_vector, dt_hours, capacity_kwh, efficiency,
-                                            soc_init, soc_target, p_max, degradation_weight=degradation_weight,
+                                            soc_init, soc_target, p_max, degradation_weight=degradation_weight, solver=solver,
                                             label=f"Multi-Objective (λ={degradation_weight:g})")
     return {"baseline": baseline, "cost_only": cost_only, "multi_objective": multi_objective}
 
