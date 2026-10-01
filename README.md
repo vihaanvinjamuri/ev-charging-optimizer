@@ -37,7 +37,9 @@ browser. **Important:** run it with `streamlit run app.py`, not
 Everything in the sidebar is editable — battery capacity, initial/target
 SoC, efficiency, charger power, arrival time, charging window, interval
 length, degradation weight λ, and the TOU tariff table — and three tabs
-update live:
+update live. A **Vehicle preset** dropdown at the top of the sidebar loads
+either the default 60 kWh / 7 kW parameters or the Tata Nexon EV's published
+45 kWh / 7.2 kW specifications (paper Section 5.3.2):
 
 - **Single Vehicle** — Immediate Charging (baseline) vs. Cost-Only vs.
   Multi-Objective, side by side.
@@ -61,9 +63,9 @@ prints `ALL VALIDATION CHECKS PASSED` on success.
 python reproduce_results.py
 ```
 
-Regenerates the single-vehicle, real-tariff, multi-vehicle, and sensitivity
-results from Chapter 5 in one run, printing each alongside the value
-reported in the paper for direct comparison.
+Regenerates the single-vehicle, real-tariff, real-vehicle (Tata Nexon EV),
+multi-vehicle, and sensitivity results from Chapter 5 in one run, printing
+each alongside the value reported in the paper for direct comparison.
 
 ```bash
 python fairness_constraint.py
