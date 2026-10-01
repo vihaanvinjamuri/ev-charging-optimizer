@@ -75,6 +75,21 @@ def section_5_3_1(illustrative_price_vector):
     print(f"{'Cost-only':<20s} {cost_only.cost:12.2f} {cost_only.degradation:14.1f}   227.38 / 972.7")
     print(f"{'Multi-obj (l=0.2)':<20s} {multi_obj.cost:12.2f} {multi_obj.degradation:14.1f}   246.73 / 582.8")
 
+def section_5_3_2():
+    print()
+    print("=" * 78)
+    print("SECTION 5.3.2: Real vehicle parameters (Tata Nexon EV: 45 kWh, 7.2 kW)")
+    print("=" * 78)
+    price_vector = pricing.build_price_vector(ARRIVAL_HOUR, N_INTERVALS, DT_HOURS, ILLUSTRATIVE_SCHEDULE)
+    cap, pmax = 45.0, 7.2
+    baseline = solve_immediate_charging(price_vector, DT_HOURS, cap, EFFICIENCY, SOC_INIT, SOC_TARGET, pmax)
+    cost_only = solve_single_vehicle(price_vector, DT_HOURS, cap, EFFICIENCY, SOC_INIT, SOC_TARGET, pmax, degradation_weight=0.0)
+    multi_obj = solve_single_vehicle(price_vector, DT_HOURS, cap, EFFICIENCY, SOC_INIT, SOC_TARGET, pmax, degradation_weight=0.2)
+
+    print(f"{'Strategy':<20s} {'Cost (Rs)':>12s} {'Degradation':>14s}   Paper says")
+    print(f"{'Baseline':<20s} {baseline.cost:12.2f} {baseline.degradation:14.1f}   224.53 / 809.9")
+    print(f"{'Cost-only':<20s} {cost_only.cost:12.2f} {cost_only.degradation:14.1f}   127.91 / 808.2")
+    print(f"{'Multi-obj (l=0.2)':<20s} {multi_obj.cost:12.2f} {multi_obj.degradation:14.1f}   157.59 / 366.1")
 
 def section_5_4(illustrative_price_vector):
     print()
@@ -124,6 +139,7 @@ def section_5_5():
 if __name__ == "__main__":
     pv = section_5_1_to_5_3()
     section_5_3_1(pv)
+    section_5_3_2()
     section_5_4(pv)
     section_5_4_1(pv)
     section_5_5()
