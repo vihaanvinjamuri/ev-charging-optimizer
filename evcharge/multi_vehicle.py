@@ -15,7 +15,7 @@ except ImportError as exc:
         "    pip install -r requirements.txt"
     ) from exc
 
-from .optimizer import ChargingResult
+from .optimizer import ChargingResult, solve_problem
 
 
 class VehicleSpec(TypedDict, total=False):
@@ -76,7 +76,7 @@ def solve_multi_vehicle(
     constraints.append(total_power_expr <= grid_cap_kw)
 
     problem = cp.Problem(cp.Minimize(sum(objective_terms)), constraints)
-    problem.solve(solver=solver)
+    solve_problem(problem, solver, min(v["capacity_kwh"] for v in vehicles))
 
     if any(p.value is None for p in P):
         results = [
