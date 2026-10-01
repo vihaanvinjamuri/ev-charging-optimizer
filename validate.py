@@ -124,6 +124,20 @@ def main():
         print("\n(scipy not installed -- skipping optional independent cross-check)")
 
     print("\n" + "=" * 70)
+    print("5) Real vehicle parameters (Tata Nexon EV: 45 kWh, 7.2 kW), paper Section 5.3.2")
+    nex_pv = pricing.build_price_vector(18.0, 40, dt_hours)
+    nex_args = (dt_hours, 45.0, efficiency, soc_init, soc_target, 7.2)
+    nex_base = solve_immediate_charging(nex_pv, *nex_args)
+    nex_cost = solve_single_vehicle(nex_pv, *nex_args, degradation_weight=0.0, label="Cost-Only")
+    nex_multi = solve_single_vehicle(nex_pv, *nex_args, degradation_weight=0.2, label="Multi-Objective")
+    for r, lbl in [(nex_base, "nexon baseline"), (nex_cost, "nexon cost-only"), (nex_multi, "nexon multi-objective")]:
+        check_soc_and_cost_consistency(r, nex_pv, dt_hours, 45.0, efficiency, lbl)
+    assert abs(nex_base.cost - 224.53) < 0.01 and abs(nex_base.degradation - 809.9) < 0.05
+    assert abs(nex_cost.cost - 127.91) < 0.01 and abs(nex_cost.degradation - 808.2) < 0.05
+    assert abs(nex_multi.cost - 157.59) < 0.01 and abs(nex_multi.degradation - 366.1) < 0.05
+    print("  PASS: matches the values reported in paper Section 5.3.2")
+    
+    print("\n" + "=" * 70)
     print("ALL VALIDATION CHECKS PASSED")
 
 
