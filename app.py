@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from evcharge import battery, pricing
+from evcharge.vehicles import VEHICLE_PRESETS, preset_names, label as preset_label
 from evcharge.scenarios import run_all_strategies, summary_table
 from evcharge.multi_vehicle import solve_multi_vehicle
 from evcharge.sensitivity import sweep_degradation_weight, sweep_charger_power
@@ -23,23 +24,38 @@ st.set_page_config(page_title="EV Charging Optimization", layout="wide")
 
 TOU_COLORS = {"Off-Peak": "#d9f2e6", "Shoulder": "#fff3cf", "Peak": "#fbdada"}
 
+# None = automatic: OSQP (reproduces the paper), with an exact CLARABEL re-solve if OSQP is inaccurate.
+SOLVER = None
+MANUAL = "Enter data manually"
+PRESET = "Choose a vehicle preset"
+
+
+def vehicle_inputs(key, default_cap=60.0, default_pmax=7.0, max_pmax=350.0, container=st.sidebar):
+    """Mode dropdown, then (optionally) a vehicle dropdown. Returns (capacity_kwh, p_max, preset name or None)."""
+    mode = container.selectbox("Vehicle data", [MANUAL, PRESET], key=f"mode_{key}")
+    cap0, pmax0, tag = default_cap, default_pmax, "manual"
+    if mode == PRESET:
+        names = preset_names()
+        choice = container.selectbox("Vehicle", names, format_func=preset_label, key=f"veh_{key}")
+        p = VEHICLE_PRESETS[choice]
+        cap0, pmax0, tag = p["battery_kwh"], min(p["ac_kw"], max_pmax), choice
+        container.caption(f"{p['category']}, {p['variant']}. [Source]({p['source']})" + (f" {p['note']}" if p.get("note") else ""))
+    # the key includes the vehicle, so the fields reset when the selection changes
+    cap = container.number_input("Battery capacity (kWh)", 1.0, 200.0, float(cap0), 0.5, key=f"cap_{key}_{tag}")
+    pmax = container.number_input("Max charger power P_max (kW)", 0.1, max_pmax, float(pmax0), 0.05, key=f"pmax_{key}_{tag}")
+    return cap, pmax, (tag if tag != "manual" else None)
+
+
 st.sidebar.title("⚡ Model Parameters")
 
-PRESETS = {
-    "Default (60 kWh / 7 kW)": (60.0, 7.0),
-    "Tata Nexon EV (45 kWh / 7.2 kW)": (45.0, 7.2),
-}
-preset = st.sidebar.selectbox("Vehicle preset", list(PRESETS))
-preset_cap, preset_pmax = PRESETS[preset]
-
+st.sidebar.subheader("Vehicle")
+capacity_kwh, p_max, _ = vehicle_inputs("single")
 st.sidebar.subheader("Battery")
-capacity_kwh = st.sidebar.number_input("Battery capacity (kWh)", 5.0, 200.0, preset_cap, 1.0, key=f"single_cap_{preset}")
 soc_init = st.sidebar.slider("Initial SoC (%)", 0, 100, 30)
 soc_target = st.sidebar.slider("Target SoC (%)", 0, 100, 90)
 efficiency = st.sidebar.slider("Charging efficiency \u03b7", 0.70, 1.00, 0.95, 0.01)
 
 st.sidebar.subheader("Charger & Schedule")
-p_max = st.sidebar.number_input("Max charger power P_max (kW)", 1.0, 350.0, preset_pmax, 0.5, key=f"single_pmax_{preset}")
 arrival_hour = st.sidebar.slider("Arrival time (24h clock)", 0.0, 23.75, 18.0, 0.25)
 window_hours = st.sidebar.slider("Charging window length (h)", 0.5, 72.0, 10.0, 0.25)
 dt_minutes = st.sidebar.selectbox("Interval \u0394t (minutes)", [5, 10, 15, 30, 60], index=2)
@@ -88,8 +104,8 @@ def tou_background_shapes():
 st.title("\U0001F50B EV Charging Optimization \u2014 Interactive Dashboard")
 st.caption("Companion tool for the EV charging optimization paper. Adjust parameters in the sidebar; every chart updates live.")
 
-tab_about, tab_single, tab_multi, tab_sens = st.tabs(
-    ["About the Model", "Single Vehicle", "Multi-Vehicle (Shared Grid)", "Sensitivity Analysis"]
+tab_about, tab_single, tab_multi, tab_compare, tab_sens = st.tabs(
+    ["About the Model", "Single Vehicle", "Multi-Vehicle (Shared Grid)", "Compare Vehicles", "Sensitivity Analysis"]
 )
 
 with tab_about:
@@ -219,7 +235,7 @@ with tab_single:
         "the degradation term is trying to avoid."
     )
     results = run_all_strategies(price_vector, dt_hours, capacity_kwh, efficiency,
-                                  soc_init, soc_target, p_max, degradation_weight)
+                                  soc_init, soc_target, p_max, degradation_weight, solver=SOLVER)
     rows = summary_table(results)
     st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
@@ -272,7 +288,7 @@ with tab_multi:
         "the colored area ever touches the dashed **Grid Capacity** line, the connection is "
         "running at its limit."
     )
-    n_vehicles = st.number_input("Number of vehicles", 1, 8, 3, 1)
+    n_vehicles = st.number_input("Number of vehicles", 2, 8, 3, 1)
     grid_cap_kw = st.slider("Shared grid capacity G_max (kW)", 1.0, 100.0, 14.0, 0.5)
 
     vehicles = []
@@ -280,12 +296,11 @@ with tab_multi:
     for i in range(int(n_vehicles)):
         with cols[i]:
             st.markdown(f"**EV {i + 1}**")
-            cap_i = st.number_input(f"Capacity (kWh)##{i}", 5.0, 200.0, 60.0, 1.0, key=f"cap_{i}")
+            cap_i, pmax_i, name_i = vehicle_inputs(f"mv{i}", max_pmax=50.0, container=st)
             init_i = st.slider(f"Initial SoC (%)##{i}", 0, 100, 20 + 5 * i, key=f"init_{i}")
             target_i = st.slider(f"Target SoC (%)##{i}", 0, 100, 90, key=f"target_{i}")
-            pmax_i = st.number_input(f"P_max (kW)##{i}", 1.0, 50.0, 7.0, 0.5, key=f"pmax_{i}")
             lam_i = st.slider(f"\u03bb (degradation)##{i}", 0.0, 2.0, degradation_weight, 0.01, key=f"lam_{i}")
-            vehicles.append({"name": f"EV {i + 1}", "capacity_kwh": cap_i, "efficiency": efficiency,
+            vehicles.append({"name": name_i or f"EV {i + 1}", "capacity_kwh": cap_i, "efficiency": efficiency,
                               "soc_init": init_i, "soc_target": target_i, "p_max": pmax_i,
                               "degradation_weight": lam_i})
 
@@ -310,6 +325,88 @@ with tab_multi:
                               xaxis_title="Time of day (h)", yaxis_title="Charging power (kW)",
                               shapes=tou_background_shapes(), legend=dict(orientation="h", y=-0.25), height=460)
         st.plotly_chart(fig_mv, width='stretch')
+
+with tab_compare:
+    st.subheader("Compare Vehicles")
+    st.markdown(
+        "Pick two or more vehicles and see how the same charging session plays out for each. "
+        "Every vehicle uses **its own battery size and charger power** (from the preset list), and "
+        "all of them share the sidebar settings: initial and target SoC, arrival time, charging "
+        "window, efficiency, tariff and degradation weight \u03bb. Costs scale with battery size, so "
+        "the percentage columns are the fair way to compare vehicles of very different sizes."
+    )
+    picks = st.multiselect("Vehicles to compare", preset_names(),
+                            default=["Tata Tiago EV", "Tata Nexon EV", "Mahindra BE 6", "Bajaj Chetak"],
+                            format_func=preset_label)
+    if len(picks) < 2:
+        st.info("Select at least two vehicles to compare.")
+    else:
+        cmp_rows, cmp_results = [], {}
+        for name in picks:
+            pr = VEHICLE_PRESETS[name]
+            cap_v, pmax_v = pr["battery_kwh"], pr["ac_kw"]
+            res = run_all_strategies(price_vector, dt_hours, cap_v, efficiency, soc_init, soc_target,
+                                      pmax_v, degradation_weight, solver=SOLVER)
+            cmp_results[name] = res
+            b, c, m = res["baseline"], res["cost_only"], res["multi_objective"]
+            ok = all(np.isfinite(r.cost) for r in (b, c, m))
+            e_need = battery.energy_required_kwh(soc_init, soc_target, cap_v)
+            row = {"Vehicle": name, "Type": pr["category"], "Battery (kWh)": cap_v, "Charger (kW)": pmax_v,
+                   "Energy to add (kWh)": round(e_need, 1)}
+            if ok:
+                row.update({
+                    "Immediate (\u20b9)": round(b.cost, 2),
+                    "Cost-Only (\u20b9)": round(c.cost, 2),
+                    "Multi-Obj (\u20b9)": round(m.cost, 2),
+                    "Immediate: time to target (h)": round(b.completion_hours, 2) if np.isfinite(b.completion_hours) else np.nan,
+                    "Saving vs Immediate (%)": round(100 * (b.cost - c.cost) / b.cost, 1) if b.cost > 0 else np.nan,
+                    "Avg cost, Multi-Obj (\u20b9/kWh)": round(m.cost / e_need, 2) if e_need > 0 else np.nan,
+                    "Degradation Immediate": round(b.degradation, 1),
+                    "Degradation Multi-Obj": round(m.degradation, 1),
+                    "Degradation cut vs Immediate (%)": round(100 * (b.degradation - m.degradation) / b.degradation, 1) if b.degradation > 0 else np.nan,
+                    "Extra cost vs Cost-Only (%)": round(100 * (m.cost - c.cost) / c.cost, 1) + 0.0 if c.cost > 0 else np.nan,
+                    "Status": "ok",
+                })
+            else:
+                row["Status"] = "infeasible (window too short for this charger)"
+            cmp_rows.append(row)
+        df_cmp = pd.DataFrame(cmp_rows)
+        st.dataframe(df_cmp, width="stretch", hide_index=True)
+        if (df_cmp["Status"] != "ok").any():
+            st.warning("Some vehicles cannot reach the target in the chosen window at their charger power. "
+                       "Widen the charging window or lower the target SoC in the sidebar.")
+        ok_df = df_cmp[df_cmp["Status"] == "ok"]
+        if not ok_df.empty:
+            fig_cost = go.Figure()
+            for col, color in [("Immediate (\u20b9)", "#888888"), ("Cost-Only (\u20b9)", "#1f77b4"), ("Multi-Obj (\u20b9)", "#d62728")]:
+                fig_cost.add_trace(go.Bar(x=ok_df["Vehicle"], y=ok_df[col], name=col, marker_color=color))
+            fig_cost.update_layout(barmode="group", title="Charging cost per session", yaxis_title="Cost (\u20b9)",
+                                    legend=dict(orientation="h", y=-0.25), height=400)
+            st.plotly_chart(fig_cost, width="stretch")
+
+            fig_pct = go.Figure()
+            fig_pct.add_trace(go.Bar(x=ok_df["Vehicle"], y=ok_df["Extra cost vs Cost-Only (%)"],
+                                      name="Extra cost vs Cost-Only (%)", marker_color="#d62728"))
+            fig_pct.add_trace(go.Bar(x=ok_df["Vehicle"], y=ok_df["Degradation cut vs Immediate (%)"],
+                                      name="Degradation cut vs Immediate (%)", marker_color="#2ca02c"))
+            fig_pct.update_layout(barmode="group", title="Trade-off as percentages (comparable across vehicle sizes)",
+                                   yaxis_title="%", legend=dict(orientation="h", y=-0.25), height=400)
+            st.plotly_chart(fig_pct, width="stretch")
+
+            focus = st.selectbox("Show the Multi-Objective charging profile for each vehicle", ["Power (kW)", "SoC (%)"])
+            fig_prof = go.Figure()
+            for name in ok_df["Vehicle"]:
+                r = cmp_results[name]["multi_objective"]
+                if focus == "Power (kW)":
+                    fig_prof.add_trace(go.Scatter(x=time_axis, y=r.power, name=name, mode="lines", line=dict(shape="hv", width=2)))
+                else:
+                    fig_prof.add_trace(go.Scatter(x=time_axis_soc, y=r.soc, name=name, mode="lines", line=dict(width=2)))
+            fig_prof.update_layout(title=f"Multi-Objective profile: {focus}", xaxis_title="Time of day (h)",
+                                    yaxis_title=focus, shapes=tou_background_shapes(),
+                                    legend=dict(orientation="h", y=-0.25), height=420)
+            st.plotly_chart(fig_prof, width="stretch")
+        st.caption("Specs are manufacturer-listed figures (see each preset's source in the sidebar). "
+                   "Tariff and window are the illustrative values from the sidebar, not real billing.")
 
 with tab_sens:
     st.subheader("Sensitivity Analysis")
