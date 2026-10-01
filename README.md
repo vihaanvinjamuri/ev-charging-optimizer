@@ -37,16 +37,14 @@ browser. **Important:** run it with `streamlit run app.py`, not
 Everything in the sidebar is editable — battery capacity, initial/target
 SoC, efficiency, charger power, arrival time, charging window, interval
 length, degradation weight λ, and the TOU tariff table — and three tabs
-update live. A **Vehicle preset** dropdown at the top of the sidebar loads
-either the default 60 kWh / 7 kW parameters or the Tata Nexon EV's published
-45 kWh / 7.2 kW specifications (paper Section 5.3.2):
-
+update live. A **Vehicle data** dropdown at the top of the sidebar switches between entering battery and charger values manually or choosing one of 15 popular Indian vehicles (top 10 electric cars and top 5 electric scooters, listed in `evcharge/vehicles.py` with sources). A preset only sets battery capacity and max charger power; everything else stays yours to set. The Multi-Vehicle tab has the same choice per vehicle, and the Compare Vehicles tab runs one session for any set of presets side by side. The Tata Nexon EV preset reproduces paper Section 5.3.2. Scooter charger ratings in particular are approximate:
 - **Single Vehicle** — Immediate Charging (baseline) vs. Cost-Only vs.
   Multi-Objective, side by side.
-- **Multi-Vehicle (Shared Grid)** — 1–8 vehicles sharing one grid capacity
+- **Multi-Vehicle (Shared Grid)** — 2–8 vehicles sharing one grid capacity
   limit.
 - **Sensitivity Analysis** — sweep λ or `P_max` and see the cost/degradation
   trade-off curve.
+- **Compare Vehicles** — same session for any set of presets, side by side.
 
 ## 3. Run the validation script
 
