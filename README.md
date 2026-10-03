@@ -36,7 +36,7 @@ browser. **Important:** run it with `streamlit run app.py`, not
 
 Everything in the sidebar is editable — battery capacity, initial/target
 SoC, efficiency, charger power, arrival time, charging window, interval
-length, degradation weight λ, and the TOU tariff table — and three tabs
+length, degradation weight λ, and the TOU tariff table — and five tabs
 update live. A **Vehicle data** dropdown at the top of the sidebar switches between entering battery and charger values manually or choosing one of 15 popular Indian vehicles (top 10 electric cars and top 5 electric scooters, listed in `evcharge/vehicles.py` with sources). A preset only sets battery capacity and max charger power; everything else stays yours to set. The Multi-Vehicle tab has the same choice per vehicle, and the Compare Vehicles tab runs one session for any set of presets side by side. The Tata Nexon EV preset reproduces paper Section 5.3.2. Scooter charger ratings in particular are approximate:
 - **Single Vehicle** — Immediate Charging (baseline) vs. Cost-Only vs.
   Multi-Objective, side by side.
@@ -61,7 +61,7 @@ prints `ALL VALIDATION CHECKS PASSED` on success.
 python reproduce_results.py
 ```
 
-Regenerates the single-vehicle, real-tariff, real-vehicle (Tata Nexon EV),
+Regenerates the single-vehicle, real-tariff, real-vehicle (15 Indian models),
 multi-vehicle, and sensitivity results from Chapter 5 in one run, printing
 each alongside the value reported in the paper for direct comparison.
 
