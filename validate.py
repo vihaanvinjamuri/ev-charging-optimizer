@@ -141,7 +141,7 @@ def main():
     print("\n" + "=" * 70)
     print("ALL VALIDATION CHECKS PASSED")
 
-        print("\n" + "=" * 70)
+    print("\n" + "=" * 70)
     print("6) Every vehicle preset: solver cost-only vs. independent greedy cost-only")
     pv_p = pricing.build_price_vector(18.0, 40, 0.25)
     for name, spec in VEHICLE_PRESETS.items():
@@ -151,6 +151,9 @@ def main():
         assert leftover <= 1e-9, f"{name}: infeasible in a 10 h window"
         assert abs(solved.cost - greedy_cost) < 0.05, f"{name}: solver {solved.cost:.3f} vs greedy {greedy_cost:.3f}"
         print(f"  {name:<20} solver Rs.{solved.cost:7.2f}  greedy Rs.{greedy_cost:7.2f}  PASS")
+
+    print("\n" + "=" * 70)
+    print("ALL VALIDATION CHECKS PASSED")
 
 
 
