@@ -14,6 +14,7 @@ import numpy as np
 
 from evcharge import battery, pricing, degradation
 from evcharge.optimizer import solve_single_vehicle, solve_immediate_charging
+from evcharge.vehicles import VEHICLE_PRESETS
 
 TOL = 1e-4
 
