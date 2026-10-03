@@ -14,7 +14,8 @@ flagging, not something to quietly fix in the paper instead.
 from evcharge import pricing
 from evcharge.optimizer import solve_immediate_charging, solve_single_vehicle
 from evcharge.multi_vehicle import solve_multi_vehicle
-from evcharge.sensitivity import sweep_degradation_weight
+from evcharge.sensitivity import sweep_degradation_weight, sweep_charger_power
+from evcharge.vehicles import VEHICLE_PRESETS
 
 DT_HOURS = 0.25
 CAPACITY_KWH = 60.0
@@ -125,7 +126,7 @@ def section_5_4_1(illustrative_price_vector):
 def section_5_5():
     print()
     print("=" * 78)
-    print("SECTION 5.5: Sensitivity sweep (Table 5.2)")
+    print("SECTION 5.5: Sensitivity sweep (Table 5.3)")
     print("=" * 78)
     price_vector = pricing.build_price_vector(ARRIVAL_HOUR, N_INTERVALS, DT_HOURS, ILLUSTRATIVE_SCHEDULE)
     weights = [0.0, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 3.0]
@@ -136,13 +137,52 @@ def section_5_5():
         print(f"{row['lambda']:8.3g} {row['cost']:10.2f} {row['degradation']:14.1f}")
 
 
+def section_5_3_2_all_vehicles():
+    print()
+    print("=" * 78)
+    print("SECTION 5.3.2: All 15 vehicles at lambda = 0.2 (Table 5.2 shows a subset)")
+    print("=" * 78)
+    pv = pricing.build_price_vector(ARRIVAL_HOUR, N_INTERVALS, DT_HOURS, ILLUSTRATIVE_SCHEDULE)
+    print(f"{'Vehicle':<20s} {'kWh/kW':>10s} {'CostOnly':>9s} {'MultiObj':>9s} {'ExtraCost':>10s} {'StressCut vs CO':>16s} {'vs Imm':>8s}")
+    for name, spec in VEHICLE_PRESETS.items():
+        cap, pmax = spec["battery_kwh"], spec["ac_kw"]
+        args = (DT_HOURS, cap, EFFICIENCY, SOC_INIT, SOC_TARGET, pmax)
+        imm = solve_immediate_charging(pv, *args)
+        co = solve_single_vehicle(pv, *args, degradation_weight=0.0)
+        mo = solve_single_vehicle(pv, *args, degradation_weight=0.2)
+        extra = round((mo.cost / co.cost - 1) * 100, 1) + 0.0
+        cut_co = (1 - mo.degradation / co.degradation) * 100
+        cut_imm = (1 - mo.degradation / imm.degradation) * 100
+        print(f"{name:<20s} {cap:>5g}/{pmax:<4g} {co.cost:9.2f} {mo.cost:9.2f} {extra:9.1f}% {cut_co:15.1f}% {cut_imm:7.1f}%")
+
+
+def section_5_5_2():
+    print()
+    print("=" * 78)
+    print("SECTION 5.5.2: Sensitivity to maximum charger power (Table 5.5, lambda = 0.2)")
+    print("=" * 78)
+    pv = pricing.build_price_vector(ARRIVAL_HOUR, N_INTERVALS, DT_HOURS, ILLUSTRATIVE_SCHEDULE)
+    pmaxes = [3.5, 4, 5, 6, 7, 8, 10, 11.2]
+    co = sweep_charger_power(pv, DT_HOURS, CAPACITY_KWH, EFFICIENCY, SOC_INIT, SOC_TARGET, pmaxes, 0.0)
+    mo = sweep_charger_power(pv, DT_HOURS, CAPACITY_KWH, EFFICIENCY, SOC_INIT, SOC_TARGET, pmaxes, 0.2)
+    print(f"{'Pmax':>6s} {'CO cost':>9s} {'CO stress':>10s} {'MO cost':>9s} {'MO stress':>10s} {'Extra':>7s} {'Cut':>7s}")
+    for a, b in zip(co, mo):
+        if a["cost"] != a["cost"]:  # NaN means infeasible
+            print(f"{a['p_max']:6g} {'infeasible':>9s}")
+            continue
+        extra = round((b["cost"] / a["cost"] - 1) * 100, 1) + 0.0
+        cut = (1 - b["degradation"] / a["degradation"]) * 100
+        print(f"{a['p_max']:6g} {a['cost']:9.2f} {a['degradation']:10.1f} {b['cost']:9.2f} {b['degradation']:10.1f} {extra:6.1f}% {cut:6.1f}%")
+
 if __name__ == "__main__":
     pv = section_5_1_to_5_3()
     section_5_3_1(pv)
     section_5_3_2()
+    section_5_3_2_all_vehicles()
     section_5_4(pv)
     section_5_4_1(pv)
     section_5_5()
+    section_5_5_2()
     print()
     print("=" * 78)
     print("Done. Compare every number above against the paper's Chapter 5 tables.")
