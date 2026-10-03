@@ -139,9 +139,6 @@ def main():
     print("  PASS: matches the values reported in paper Section 5.3.2")
     
     print("\n" + "=" * 70)
-    print("ALL VALIDATION CHECKS PASSED")
-
-    print("\n" + "=" * 70)
     print("6) Every vehicle preset: solver cost-only vs. independent greedy cost-only")
     pv_p = pricing.build_price_vector(18.0, 40, 0.25)
     for name, spec in VEHICLE_PRESETS.items():
