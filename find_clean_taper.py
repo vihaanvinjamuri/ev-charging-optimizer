@@ -14,8 +14,9 @@ session already documented in Section 5.6 of the paper).
 
 BEFORE RUNNING:
 1. pip install acnportal
-2. Paste your ACN-Data API token below (get one free at
-   https://ev.caltech.edu/register if you don't have one).
+2. Get a free ACN-Data API token at https://ev.caltech.edu/register and
+   set it as an environment variable (never paste it into the code):
+   Mac/Linux:  export ACN_TOKEN="your_token_here"
 3. Run:  python find_clean_taper.py
 """
 
@@ -23,7 +24,7 @@ from acnportal.acndata import DataClient
 from datetime import datetime
 import numpy as np
 
-TOKEN = "kcOV82xez-VHsa0272gZipaGeY4LLuxyDoaOZxr2pKo"  # <-- put your API token here
+TOKEN = os.environ.get("ACN_TOKEN")
 
 SITES_TO_CHECK = ["jpl", "office_001"]  # NOTE: office site id has an underscore
 SESSIONS_PER_SITE = 5
@@ -46,6 +47,10 @@ def noise_score(current):
 
 def main():
     client = DataClient(api_token=TOKEN)
+
+    if not TOKEN:
+        sys.exit("Set the ACN_TOKEN environment variable first (see the top of this file).")
+
     results = []
 
     for site in SITES_TO_CHECK:
@@ -114,8 +119,7 @@ def main():
         print(f"  site={r['site']:10s} sessionID={r['sessionID']}")
         print(f"    kWh={r['kWhDelivered']:.1f}  points={r['points']}  noise_score={r['noise_score']:.3f}")
 
-    print("\nNext step: send this printed output back, and we'll pick the top")
-    print("candidate to actually plot and inspect visually.")
+    print("\nNext step: plot the top candidate to inspect its current curve visually.")
 
 
 if __name__ == "__main__":
