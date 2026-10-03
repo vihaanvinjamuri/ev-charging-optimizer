@@ -97,7 +97,7 @@ def tou_background_shapes():
     for t in time_axis:
         lbl = pricing.label_at_hour(t, schedule)
         shapes.append(dict(type="rect", xref="x", yref="paper", x0=t, x1=t + dt_hours, y0=0, y1=1,
-                            fillcolor=TOU_.get(lbl, "#eeeeee"), opacity=0.5, line_width=0, layer="below"))
+                            fillcolor=TOU_COLORS.get(lbl, "#eeeeee"), opacity=0.5, line_width=0, layer="below"))
     return shapes
 
 
