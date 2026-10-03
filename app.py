@@ -97,7 +97,7 @@ def tou_background_shapes():
     for t in time_axis:
         lbl = pricing.label_at_hour(t, schedule)
         shapes.append(dict(type="rect", xref="x", yref="paper", x0=t, x1=t + dt_hours, y0=0, y1=1,
-                            fillcolor=TOU_COLORS.get(lbl, "#eeeeee"), opacity=0.5, line_width=0, layer="below"))
+                            fillcolor=TOU_.get(lbl, "#eeeeee"), opacity=0.5, line_width=0, layer="below"))
     return shapes
 
 
@@ -252,8 +252,8 @@ with tab_single:
             f"— a shortfall of **{shortfall:.1f} kWh**. Widen the charging window, raise P_max, "
             f"or lower the target SoC to fix this."
         )
-
-    colors = {"baseline": "#888888", "cost_only": "#1f77b4", "multi_objective": "#d62728"}
+    
+    colors = {"baseline": "#8e44ad", "cost_only": "#1f77b4", "multi_objective": "#d62728"}
     fig_power = go.Figure()
     for key, r in results.items():
         if np.all(np.isfinite(r.power)):
@@ -378,7 +378,7 @@ with tab_compare:
         ok_df = df_cmp[df_cmp["Status"] == "ok"]
         if not ok_df.empty:
             fig_cost = go.Figure()
-            for col, color in [("Immediate (\u20b9)", "#888888"), ("Cost-Only (\u20b9)", "#1f77b4"), ("Multi-Obj (\u20b9)", "#d62728")]:
+            for col, color in [("Immediate (\u20b9)", "#8e44ad"), ("Cost-Only (\u20b9)", "#1f77b4"), ("Multi-Obj (\u20b9)", "#d62728")]:
                 fig_cost.add_trace(go.Bar(x=ok_df["Vehicle"], y=ok_df[col], name=col, marker_color=color))
             fig_cost.update_layout(barmode="group", title="Charging cost per session", yaxis_title="Cost (\u20b9)",
                                     legend=dict(orientation="h", y=-0.25), height=400)
