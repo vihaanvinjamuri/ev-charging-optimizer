@@ -105,8 +105,9 @@ st.title("\U0001F50B EV Charging Optimization \u2014 Interactive Dashboard")
 st.caption("Companion tool for the EV charging optimization paper. Adjust parameters in the sidebar; every chart updates live.")
 st.caption("By Vihaan Vinjamuri, IBDP2")
 
-tab_about, tab_single, tab_multi, tab_compare, tab_sens = st.tabs(
-    ["About the Model", "Single Vehicle", "Multi-Vehicle (Shared Grid)", "Compare Vehicles", "Sensitivity Analysis"]
+tab_about, tab_single, tab_multi, tab_compare, tab_home, tab_sens = st.tabs(
+    ["About the Model", "Single Vehicle", "Multi-Vehicle (Shared Grid)", "Compare Vehicles",
+     "At-Home Devices", "Sensitivity Analysis"]
 )
 
 with tab_about:
@@ -408,6 +409,77 @@ with tab_compare:
             st.plotly_chart(fig_prof, width="stretch")
         st.caption("Specs are manufacturer-listed figures (see each preset's source in the sidebar). "
                    "Tariff and window are the illustrative values from the sidebar, not real billing.")
+
+with tab_home:
+    st.subheader("At-Home Devices")
+    st.markdown(
+        "Use the same optimizer for small batteries you charge at home, such as a phone, a laptop "
+        "or a power bank. Enter the battery size in **Wh** and the charger power in **W**. The "
+        "initial and target SoC, efficiency, arrival time, charging window, tariff and \u03bb all "
+        "come from the sidebar, and the vehicle fields in the sidebar are ignored on this tab. "
+        "Costs here are tiny, so they are shown to four decimal places."
+    )
+    hc1, hc2 = st.columns(2)
+    cap_wh = hc1.number_input("Battery capacity (Wh)", 1.0, 5000.0, 74.0, 1.0, key="home_cap_wh")
+    pmax_w = hc2.number_input("Max charger power (W)", 1.0, 3000.0, 20.0, 1.0, key="home_pmax_w")
+    st.caption("Approximate examples: iPhone about 13 Wh with a 20 W charger, MacBook Pro 14-inch about 70 Wh "
+               "with a 67 W charger, the Xiaomi power bank from the paper 74 Wh charging at about 12.4 W.")
+
+    # The solver is tuned for EV-sized numbers. To keep \u03bb meaning the same thing as on the EV tabs,
+    # the device is solved as a 60 kWh battery at the same C-rate, then cost, power and stress are scaled back.
+    REF_KWH = 60.0
+    cap_kwh_h = cap_wh / 1000.0
+    pmax_kw_h = pmax_w / 1000.0
+    k = REF_KWH / cap_kwh_h
+    results_h = run_all_strategies(price_vector, dt_hours, cap_kwh_h * k, efficiency, soc_init, soc_target,
+                                    pmax_kw_h * k, degradation_weight, solver=SOLVER)
+
+    if any(not np.isfinite(r.cost) for r in results_h.values()):
+        wh_needed = battery.energy_required_kwh(soc_init, soc_target, cap_kwh_h) * 1000.0
+        wh_deliverable = pmax_w * efficiency * window_hours
+        st.error(
+            f"\u26a0\ufe0f Infeasible: reaching {soc_target}% from {soc_init}% needs about "
+            f"**{wh_needed:.1f} Wh**, but at most **{wh_deliverable:.1f} Wh** can be delivered in "
+            f"{window_hours:.1f} hours at {pmax_w:.1f} W with {efficiency:.0%} efficiency. Widen the "
+            f"charging window, raise the charger power, or lower the target SoC."
+        )
+
+    home_rows = []
+    for r in results_h.values():
+        if np.isfinite(r.cost):
+            home_rows.append({
+                "Strategy": r.label,
+                "Cost (\u20b9)": round(r.cost / k, 4),
+                "Degradation index (W\u00b2)": round(r.degradation / k ** 2 * 1e6, 1),
+                "Final SoC (%)": round(float(r.soc[-1]), 1),
+                "Time to target (h)": round(r.completion_hours, 2) if np.isfinite(r.completion_hours) else np.nan,
+            })
+    if home_rows:
+        st.dataframe(pd.DataFrame(home_rows), width='stretch', hide_index=True)
+
+    colors_h = {"baseline": "#8e44ad", "cost_only": "#1f77b4", "multi_objective": "#d62728"}
+    fig_hp = go.Figure()
+    for key, r in results_h.items():
+        if np.all(np.isfinite(r.power)):
+            fig_hp.add_trace(go.Scatter(x=time_axis, y=r.power / k * 1000.0, mode="lines", name=r.label,
+                                         line=dict(color=colors_h[key], shape="hv", width=2.5)))
+    fig_hp.update_layout(title="Charging Power Profile", xaxis_title="Time of day (h)",
+                          yaxis_title="Charging power (W)", shapes=tou_background_shapes(),
+                          legend=dict(orientation="h", y=-0.2), height=420)
+    st.plotly_chart(fig_hp, width='stretch')
+
+    fig_hs = go.Figure()
+    for key, r in results_h.items():
+        if np.all(np.isfinite(r.soc)):
+            fig_hs.add_trace(go.Scatter(x=time_axis_soc, y=r.soc, mode="lines", name=r.label,
+                                         line=dict(color=colors_h[key], width=2.5)))
+    fig_hs.add_hline(y=soc_target, line_dash="dot", line_color="black", annotation_text="Target SoC")
+    fig_hs.update_layout(title="Battery State of Charge", xaxis_title="Time of day (h)",
+                          yaxis_title="SoC (%)", yaxis_range=[0, 100], shapes=tou_background_shapes(),
+                          legend=dict(orientation="h", y=-0.2), height=420)
+    st.plotly_chart(fig_hs, width='stretch')
+    st.caption("Phones and laptops have their own battery management that tapers power and can pause charging, "
+               "which this model does not include. Treat these results as an illustration, not a prediction.")
 
 with tab_sens:
     st.subheader("Sensitivity Analysis")
