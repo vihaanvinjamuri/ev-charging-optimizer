@@ -103,6 +103,7 @@ def tou_background_shapes():
 
 st.title("\U0001F50B EV Charging Optimization \u2014 Interactive Dashboard")
 st.caption("Companion tool for the EV charging optimization paper. Adjust parameters in the sidebar; every chart updates live.")
+st.caption("By Vihaan Vinjamuri, IBDP2")
 
 tab_about, tab_single, tab_multi, tab_compare, tab_sens = st.tabs(
     ["About the Model", "Single Vehicle", "Multi-Vehicle (Shared Grid)", "Compare Vehicles", "Sensitivity Analysis"]
