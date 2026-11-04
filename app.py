@@ -51,6 +51,21 @@ def _number_box(dg, label, min_value=None, max_value=None, value=None,
 DeltaGenerator.slider = lambda self, *a, **k: _number_box(self, *a, **k)
 st.slider = lambda *a, **k: _number_box(st, *a, **k)
 
+def _show_table(data, *args, **kwargs):
+    # The interactive table needs a script that fails to load on some networks,
+    # so tables are drawn as plain static tables instead.
+    df = pd.DataFrame(data)
+
+    def fmt(v):
+        if isinstance(v, (float, np.floating)):
+            return "-" if np.isnan(v) else f"{v:.4f}".rstrip("0").rstrip(".")
+        return v
+
+    st.table(df.style.hide(axis="index").format(fmt))
+
+
+st.dataframe = _show_table
+
 st.set_page_config(page_title="EV Charging Optimization", layout="wide")
 
 TOU_COLORS = {"Off-Peak": "#d9f2e6", "Shoulder": "#fff3cf", "Peak": "#fbdada"}
@@ -101,7 +116,16 @@ tariff_df_default = pd.DataFrame(
     [{"Period": lbl, "Start (h)": s, "End (h)": e, "Price (\u20b9/kWh)": p}
      for s, e, p, lbl in pricing.DEFAULT_TOU_SCHEDULE]
 )
-tariff_df = st.sidebar.data_editor(tariff_df_default, hide_index=True, num_rows="fixed", key="tariff_editor")
+tariff_rows = []
+for idx, row in tariff_df_default.iterrows():
+    st.sidebar.caption(str(row["Period"]))
+    tc1, tc2, tc3 = st.sidebar.columns(3)
+    t_start = tc1.number_input("Start (h)", 0.0, 48.0, float(row["Start (h)"]), 0.5, format="%.1f", key=f"tou_s_{idx}")
+    t_end = tc2.number_input("End (h)", 0.0, 48.0, float(row["End (h)"]), 0.5, format="%.1f", key=f"tou_e_{idx}")
+    t_price = tc3.number_input("Price", 0.0, 100.0, float(row["Price (\u20b9/kWh)"]), 0.1, format="%.2f", key=f"tou_p_{idx}")
+    tariff_rows.append({"Period": row["Period"], "Start (h)": t_start, "End (h)": t_end,
+                        "Price (\u20b9/kWh)": t_price})
+tariff_df = pd.DataFrame(tariff_rows)
 schedule = [(row["Start (h)"], row["End (h)"], row["Price (\u20b9/kWh)"], row["Period"])
             for _, row in tariff_df.iterrows()]
 try:
