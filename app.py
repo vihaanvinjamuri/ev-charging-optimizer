@@ -9,6 +9,7 @@ from the paper's methodology can be changed live.
 """
 from __future__ import annotations
 
+import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -19,6 +20,36 @@ from evcharge.vehicles import VEHICLE_PRESETS, preset_names, label as preset_lab
 from evcharge.scenarios import run_all_strategies, summary_table
 from evcharge.multi_vehicle import solve_multi_vehicle
 from evcharge.sensitivity import sweep_degradation_weight, sweep_charger_power
+
+from streamlit.delta_generator import DeltaGenerator
+
+
+def _number_box(dg, label, min_value=None, max_value=None, value=None,
+                step=None, format=None, key=None, help=None, **kwargs):
+    # Sliders need a script that fails to load on some networks,
+    # so every slider is drawn as a number box instead.
+    vals = list(value) if isinstance(value, (tuple, list)) else [value]
+    nums = [p for p in [min_value, max_value, step] + vals if p is not None]
+    use_int = all(isinstance(p, int) and not isinstance(p, bool) for p in nums)
+    cast = int if use_int else float
+    if step is None:
+        step = 1 if use_int else 0.01
+    lo, hi, stp = cast(min_value), cast(max_value), cast(step)
+    fmt = None if use_int else ("%.2f" if stp < 0.1 else "%.1f")
+    if isinstance(value, (tuple, list)):
+        dg.caption(label)
+        c1, c2 = dg.columns(2)
+        a = c1.number_input("From", lo, hi, cast(vals[0]), stp, format=fmt,
+                            key=f"{key}_lo" if key else None)
+        b = c2.number_input("To", lo, hi, cast(vals[1]), stp, format=fmt,
+                            key=f"{key}_hi" if key else None)
+        return (min(a, b), max(a, b))
+    return dg.number_input(label, lo, hi, cast(vals[0]), stp, format=fmt,
+                           key=key, help=help)
+
+
+DeltaGenerator.slider = lambda self, *a, **k: _number_box(self, *a, **k)
+st.slider = lambda *a, **k: _number_box(st, *a, **k)
 
 st.set_page_config(page_title="EV Charging Optimization", layout="wide")
 
@@ -313,7 +344,7 @@ with tab_multi:
         mv_rows = [{"Vehicle": r.label, "Cost (\u20b9)": round(r.cost, 2), "Degradation Index": round(r.degradation, 1),
                      "Final SoC (%)": round(float(r.soc[-1]), 1)} for r in mv_result.vehicles]
         mv_rows.append({"Vehicle": "TOTAL", "Cost (\u20b9)": round(mv_result.total_cost, 2),
-                         "Degradation Index": round(mv_result.total_degradation, 1), "Final SoC (%)": "\u2014"})
+                         "Degradation Index": round(mv_result.total_degradation, 1), "Final SoC (%)": None})
         st.dataframe(pd.DataFrame(mv_rows), width='stretch', hide_index=True)
         st.metric("Peak grid utilization", f"{mv_result.meta['peak_utilization_pct']:.1f}%")
 
