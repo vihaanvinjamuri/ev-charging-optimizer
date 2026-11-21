@@ -116,6 +116,11 @@ tariff_df_default = pd.DataFrame(
     [{"Period": lbl, "Start (h)": s, "End (h)": e, "Price (\u20b9/kWh)": p}
      for s, e, p, lbl in pricing.DEFAULT_TOU_SCHEDULE]
 )
+
+tariff_df = st.sidebar.data_editor(tariff_df_default, hide_index=True, num_rows="fixed", key="tariff_editor")
+
+"""
+#OLD TABLE
 tariff_rows = []
 for idx, row in tariff_df_default.iterrows():
     st.sidebar.caption(str(row["Period"]))
@@ -126,6 +131,8 @@ for idx, row in tariff_df_default.iterrows():
     tariff_rows.append({"Period": row["Period"], "Start (h)": t_start, "End (h)": t_end,
                         "Price (\u20b9/kWh)": t_price})
 tariff_df = pd.DataFrame(tariff_rows)
+"""
+
 schedule = [(row["Start (h)"], row["End (h)"], row["Price (\u20b9/kWh)"], row["Period"])
             for _, row in tariff_df.iterrows()]
 try:
